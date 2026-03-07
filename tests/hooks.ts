@@ -4,11 +4,7 @@ import { LoginPage } from "./pages/LoginPage";
 
 test.beforeEach(async ({ page }) => {
   const loginPage = new LoginPage(page);
-  await loginPage.login(
-    data.baseUrl,
-    data.credentials.username,
-    data.credentials.password
-  );
+  await loginPage.login(data.credentials.username, data.credentials.password);
 });
 
 test.afterEach(async ({ page }, testInfo) => {
@@ -16,7 +12,6 @@ test.afterEach(async ({ page }, testInfo) => {
     /\s+/g,
     "_"
   )}_${testInfo.status}.png`;
-
   await page.screenshot({ path: screenshotPath, fullPage: true });
 
   await testInfo.attach(
