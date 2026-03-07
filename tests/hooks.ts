@@ -1,8 +1,6 @@
-import { test, chromium, Browser } from "@playwright/test";
+import { test } from "@playwright/test";
 import data from "./fixture/testdata.json";
 import { LoginPage } from "./pages/LoginPage";
-
-let browser: Browser;
 
 test.beforeEach(async ({ page }) => {
   const loginPage = new LoginPage(page);
@@ -30,4 +28,14 @@ test.afterEach(async ({ page }, testInfo) => {
       contentType: "image/png",
     }
   );
+
+  if (testInfo.status === "failed") {
+    const videoPath = await page.video()?.path();
+    if (videoPath) {
+      await testInfo.attach("🎥 Video on fail", {
+        path: videoPath,
+        contentType: "video/webm",
+      });
+    }
+  }
 });
