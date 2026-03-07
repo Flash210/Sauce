@@ -4,7 +4,7 @@ const URL = 'https://www.saucedemo.com';
 const USERNAME = 'standard_user';
 const PASSWORD = 'secret_sauce';
 
-async function login(page) {
+async function login(page: any) {
   await page.goto(URL);
   await page.fill('#user-name', USERNAME);
   await page.fill('#password', PASSWORD);
