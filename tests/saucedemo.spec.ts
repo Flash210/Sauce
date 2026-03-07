@@ -1,100 +1,78 @@
 import { test, expect } from "@playwright/test";
 import data from "./fixture/testdata.json";
-
-const locators = {
-  // Login
-  usernameInput: "#user-name",
-  passwordInput: "#password",
-  loginButton: "#login-button",
-  // Inventory
-  inventoryItem: ".inventory_item",
-  itemName: ".inventory_item_name",
-  itemDesc: ".inventory_item_desc",
-  itemPrice: ".inventory_item_price",
-  addToCartBtn: 'button[data-test^="add-to-cart"]',
-  removeBtn: 'button[data-test^="remove"]',
-  // Cart
-  cartBadge: ".shopping_cart_badge",
-  cartLink: ".shopping_cart_link",
-  cartItem: ".cart_item",
-};
+import { LoginPage } from "./pages/LoginPage";
+import { InventoryPage } from "./pages/InventoryPage";
+import { CartPage } from "./pages/CartPage";
 
 test.beforeEach(async ({ page }) => {
-  await page.goto(data.baseUrl);
-  await page.fill(locators.usernameInput, data.credentials.username);
-  await page.fill(locators.passwordInput, data.credentials.password);
-  await page.click(locators.loginButton);
-  await expect(page).toHaveURL(`${data.baseUrl}/inventory.html`);
+  const loginPage = new LoginPage(page);
+  await loginPage.login(
+    data.baseUrl,
+    data.credentials.username,
+    data.credentials.password
+  );
 });
 
 test.afterEach(async ({ page }) => {
   console.log(`[afterEach] Test finished on: ${page.url()}`);
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 1: Add ONE product and verify name, description and price in the cart
+// ─────────────────────────────────────────────────────────────────────────────
 test("Add one product and verify it in the cart", async ({ page }) => {
-  const firstItem = page.locator(locators.inventoryItem).first();
+  const inventoryPage = new InventoryPage(page);
+  const cartPage = new CartPage(page);
 
-  const expectedName = await firstItem.locator(locators.itemName).innerText();
-  const expectedDesc = await firstItem.locator(locators.itemDesc).innerText();
-  const expectedPrice = await firstItem.locator(locators.itemPrice).innerText();
+  const product = await inventoryPage.getProductDetails(0);
+  await inventoryPage.addToCart(0);
+  await inventoryPage.assertCartBadge(1);
 
-  await firstItem.locator(locators.addToCartBtn).click();
-  await expect(page.locator(locators.cartBadge)).toHaveText("1");
-
-  await page.click(locators.cartLink);
+  await inventoryPage.goToCart();
   await expect(page).toHaveURL(`${data.baseUrl}/cart.html`);
 
-  const cartItem = page.locator(locators.cartItem).first();
-  await expect(cartItem.locator(locators.itemName)).toHaveText(expectedName);
-  await expect(cartItem.locator(locators.itemDesc)).toHaveText(expectedDesc);
-  await expect(cartItem.locator(locators.itemPrice)).toHaveText(expectedPrice);
+  await cartPage.assertProduct(product.name, product.desc, product.price);
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 2: Add MULTIPLE products and verify each one in the cart
+// ─────────────────────────────────────────────────────────────────────────────
 test("Add multiple products and verify them in the cart", async ({ page }) => {
+  const inventoryPage = new InventoryPage(page);
+  const cartPage = new CartPage(page);
   const COUNT = 3;
-  const expectedProducts: { name: string; desc: string; price: string }[] = [];
 
+  const products: { name: string; desc: string; price: string }[] = [];
   for (let i = 0; i < COUNT; i++) {
-    const item = page.locator(locators.inventoryItem).nth(i);
-    expectedProducts.push({
-      name: await item.locator(locators.itemName).innerText(),
-      desc: await item.locator(locators.itemDesc).innerText(),
-      price: await item.locator(locators.itemPrice).innerText(),
-    });
-    await item.locator(locators.addToCartBtn).click();
+    products.push(await inventoryPage.getProductDetails(i));
+    await inventoryPage.addToCart(i);
   }
 
-  await expect(page.locator(locators.cartBadge)).toHaveText(String(COUNT));
+  await inventoryPage.assertCartBadge(COUNT);
 
-  await page.click(locators.cartLink);
+  await inventoryPage.goToCart();
   await expect(page).toHaveURL(`${data.baseUrl}/cart.html`);
 
-  for (const product of expectedProducts) {
-    const cartItem = page.locator(locators.cartItem).filter({
-      has: page.locator(locators.itemName, { hasText: product.name }),
-    });
-    await expect(cartItem.locator(locators.itemName)).toHaveText(product.name);
-    await expect(cartItem.locator(locators.itemDesc)).toHaveText(product.desc);
-    await expect(cartItem.locator(locators.itemPrice)).toHaveText(
-      product.price
-    );
+  for (const product of products) {
+    await cartPage.assertProduct(product.name, product.desc, product.price);
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 3: "Add to cart" → button becomes "Remove" → click it → back to "Add to cart"
+// ─────────────────────────────────────────────────────────────────────────────
 test("Add to cart button toggles to Remove and back", async ({ page }) => {
-  const firstItem = page.locator(locators.inventoryItem).first();
-  const addButton = firstItem.locator(locators.addToCartBtn);
-  const removeButton = firstItem.locator(locators.removeBtn);
+  const inventoryPage = new InventoryPage(page);
 
-  await expect(addButton).toBeVisible();
+  await inventoryPage.assertAddButtonVisible(0);
 
-  await addButton.click();
-  await expect(removeButton).toBeVisible();
-  await expect(addButton).not.toBeVisible();
-  await expect(page.locator(locators.cartBadge)).toHaveText("1");
+  await inventoryPage.addToCart(0);
+  await inventoryPage.assertRemoveButtonVisible(0);
+  await inventoryPage.assertAddButtonHidden(0);
+  await inventoryPage.assertCartBadge(1);
 
-  await removeButton.click();
-  await expect(addButton).toBeVisible();
-  await expect(removeButton).not.toBeVisible();
-  await expect(page.locator(locators.cartBadge)).not.toBeVisible();
+  await inventoryPage.removeFromCart(0);
+  await inventoryPage.assertAddButtonVisible(0);
+  await inventoryPage.assertRemoveButtonHidden(0);
+  await inventoryPage.assertCartBadgeHidden();
 });
