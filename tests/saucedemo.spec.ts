@@ -1,21 +1,8 @@
 import { test, expect } from "@playwright/test";
 import data from "./fixture/testdata.json";
-import { LoginPage } from "./pages/LoginPage";
 import { InventoryPage } from "./pages/InventoryPage";
 import { CartPage } from "./pages/CartPage";
-
-test.beforeEach(async ({ page }) => {
-  const loginPage = new LoginPage(page);
-  await loginPage.login(
-    data.baseUrl,
-    data.credentials.username,
-    data.credentials.password
-  );
-});
-
-test.afterEach(async ({ page }) => {
-  console.log(`[afterEach] Test finished on: ${page.url()}`);
-});
+import "./hooks";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 1: Add ONE product and verify name, description and price in the cart
