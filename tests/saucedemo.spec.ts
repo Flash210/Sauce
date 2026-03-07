@@ -96,4 +96,7 @@ test('Add to cart button toggles to Remove and back', async ({ page }) => {
   await expect(removeButton).not.toBeVisible();
 
   await expect(page.locator('.shopping_cart_badge')).not.toBeVisible();
+
+
+  // Verify that the cart is empty
 });
