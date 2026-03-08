@@ -2,68 +2,75 @@ import { test, expect } from "@playwright/test";
 import data from "./fixture/testdata.json";
 import { InventoryPage } from "./pages/InventoryPage";
 import { CartPage } from "./pages/CartPage";
+import { CheckoutPage } from "./pages/CheckoutPage";
 import "./hooks";
 
-test.describe("Cart Tests", () => {
+test.describe("Checkout Tests", () => {
   // ─────────────────────────────────────────────────────────────────────────────
-  // Test 1: Add ONE product and verify name, description and price in the cart
+  // Test 1: Complete a full checkout flow and verify order confirmation
   // ─────────────────────────────────────────────────────────────────────────────
-  test("Add one product and verify it in the cart", async ({ page }) => {
+  test("Complete checkout and verify order confirmation", async ({ page }) => {
     const inventoryPage = new InventoryPage(page);
     const cartPage = new CartPage(page);
+    const checkoutPage = new CheckoutPage(page);
 
-    const product = await inventoryPage.getProductDetails(0);
     await inventoryPage.addToCart(0);
-    await inventoryPage.assertCartBadge(1);
-
     await inventoryPage.goToCart();
     await expect(page).toHaveURL(/.*cart\.html/);
 
-    await cartPage.assertProduct(product.name, product.desc, product.price);
+    await checkoutPage.proceedToCheckout();
+    await checkoutPage.fillShippingInfo(
+      data.checkout.firstName,
+      data.checkout.lastName,
+      data.checkout.postalCode
+    );
+    await checkoutPage.clickContinue();
+    await checkoutPage.assertSummaryTotal();
+    await checkoutPage.clickFinish();
+    await checkoutPage.assertOrderConfirmation();
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Test 2: Add MULTIPLE products and verify each one in the cart
+  // Test 2: Verify order summary subtotal matches sum of added product prices
   // ─────────────────────────────────────────────────────────────────────────────
-  test("Add multiple products and verify them in the cart", async ({
-    page,
-  }) => {
+  test("Verify checkout summary subtotal is correct", async ({ page }) => {
     const inventoryPage = new InventoryPage(page);
-    const cartPage = new CartPage(page);
-    const COUNT = 3;
+    const checkoutPage = new CheckoutPage(page);
+    const COUNT = 2;
 
-    const products: { name: string; desc: string; price: string }[] = [];
+    let total = 0;
     for (let i = 0; i < COUNT; i++) {
-      products.push(await inventoryPage.getProductDetails(i));
+      const product = await inventoryPage.getProductDetails(i);
+      total += parseFloat(product.price.replace("$", ""));
       await inventoryPage.addToCart(i);
     }
 
-    await inventoryPage.assertCartBadge(COUNT);
-
     await inventoryPage.goToCart();
-    await expect(page).toHaveURL(/.*cart\.html/);
-
-    for (const product of products) {
-      await cartPage.assertProduct(product.name, product.desc, product.price);
-    }
+    await checkoutPage.proceedToCheckout();
+    await checkoutPage.fillShippingInfo(
+      data.checkout.firstName,
+      data.checkout.lastName,
+      data.checkout.postalCode
+    );
+    await checkoutPage.clickContinue();
+    await checkoutPage.assertSummarySubtotal(`$${total.toFixed(2)}`);
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Test 3: "Add to cart" → button becomes "Remove" → click it → back to "Add to cart"
+  // Test 3: Submitting checkout form with empty fields shows an error
   // ─────────────────────────────────────────────────────────────────────────────
-  test("Add to cart button toggles to Remove and back", async ({ page }) => {
+  test("Checkout with empty fields shows validation error", async ({
+    page,
+  }) => {
     const inventoryPage = new InventoryPage(page);
-
-    await inventoryPage.assertAddButtonVisible(0);
+    const checkoutPage = new CheckoutPage(page);
 
     await inventoryPage.addToCart(0);
-    await inventoryPage.assertRemoveButtonVisible(0);
-    await inventoryPage.assertAddButtonHidden(0);
-    await inventoryPage.assertCartBadge(1);
+    await inventoryPage.goToCart();
+    await checkoutPage.proceedToCheckout();
 
-    await inventoryPage.removeFromCart(0);
-    await inventoryPage.assertAddButtonVisible(0);
-    await inventoryPage.assertRemoveButtonHidden(0);
-    await inventoryPage.assertCartBadgeHidden();
+    // Submit without filling any field
+    await page.click('[data-test="continue"]');
+    await checkoutPage.assertErrorMessage("First Name is required");
   });
 });
