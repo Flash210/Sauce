@@ -1,6 +1,8 @@
 import { test } from "@playwright/test";
 import data from "./fixture/testdata.json";
 import { LoginPage } from "./pages/LoginPage";
+import * as fs from "fs";
+import * as path from "path";
 
 test.beforeEach(async ({ page }) => {
   const loginPage = new LoginPage(page);
@@ -8,29 +10,28 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.afterEach(async ({ page }, testInfo) => {
-  const screenshotPath = `test-results/screenshots/${testInfo.title.replace(
-    /\s+/g,
-    "_"
-  )}_${testInfo.status}.png`;
-  await page.screenshot({ path: screenshotPath, fullPage: true });
+  // Take screenshot BEFORE the page is torn down
+  const screenshot = await page.screenshot({ fullPage: true });
 
+  // Save to disk
+  const screenshotDir = "test-results/screenshots";
+  fs.mkdirSync(screenshotDir, { recursive: true });
+  const screenshotPath = path.join(
+    screenshotDir,
+    `${testInfo.title.replace(/\s+/g, "_")}_${testInfo.status}.png`
+  );
+  fs.writeFileSync(screenshotPath, screenshot);
+
+  // Attach to the HTML report
   await testInfo.attach(
     testInfo.status === "passed"
       ? "✅ Screenshot on pass"
       : "❌ Screenshot on fail",
     {
-      body: await page.screenshot({ fullPage: true }),
+      body: screenshot,
       contentType: "image/png",
     }
   );
 
-  if (testInfo.status === "failed") {
-    const videoPath = await page.video()?.path();
-    if (videoPath) {
-      await testInfo.attach("🎥 Video on fail", {
-        path: videoPath,
-        contentType: "video/webm",
-      });
-    }
-  }
+
 });
