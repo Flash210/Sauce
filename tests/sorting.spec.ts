@@ -10,7 +10,6 @@ test.describe("Sorting Tests", () => {
     const sortingPage = new SortingPage(page);
     await sortingPage.assertActiveSortOption("az");
     await sortingPage.assertNamesSortedAZ();
-    await sortingPage.assertPricesSortedLowToHigh();
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
