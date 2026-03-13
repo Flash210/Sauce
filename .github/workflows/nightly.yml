@@ -1,17 +1,16 @@
-name: 🧪 CI — Playwright Tests
+name: 🌙 Nightly — Playwright Tests
 
 on:
-  push:
-    branches: [main, master, develop]
-  pull_request:
-    branches: [main, master, develop]
+  schedule:
+    # Runs every night at 00:00 UTC
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
-  test:
-    name: 🧪 CI Tests (${{ matrix.browser }})
+  nightly:
+    name: 🌙 Nightly Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     strategy:
       fail-fast: false
@@ -34,23 +33,28 @@ jobs:
       - name: 🌐 Install Playwright Browsers
         run: npx playwright install --with-deps ${{ matrix.browser }}
 
-      - name: 🎭 Run Playwright Tests (${{ matrix.browser }})
+      - name: 🌙 Run Full Nightly Test Suite (${{ matrix.browser }})
         run: npx playwright test --project=${{ matrix.browser }}
         env:
           CI: true
 
-      - name: 📊 Upload HTML Report
+      - name: 📊 Upload Nightly HTML Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report-${{ matrix.browser }}
+          name: nightly-report-${{ matrix.browser }}
           path: playwright-report/
-          retention-days: 30
+          retention-days: 60
 
-      - name: 📸 Upload Test Results (Screenshots & Videos)
+      - name: 📸 Upload Nightly Test Results (Screenshots & Videos)
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-${{ matrix.browser }}
+          name: nightly-results-${{ matrix.browser }}
           path: test-results/
-          retention-days: 30
+          retention-days: 60
+
+      - name: 🔔 Notify on Nightly Failure
+        if: failure()
+        run: |
+          echo "::error::🌙 Nightly tests FAILED on ${{ matrix.browser }}. Check the artifacts for screenshots and videos."
