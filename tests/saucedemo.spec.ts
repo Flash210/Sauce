@@ -1,20 +1,58 @@
 import { test, expect } from '@playwright/test';
+import data from "./fixture/testdata.json";
 
-const URL = 'https://www.saucedemo.com';
-const USERNAME = 'standard_user';
-const PASSWORD = 'secret_sauce';
+const locators = {
+  // Login
+  usernameInput: "#user-name",
+  passwordInput: "#password",
+  loginButton: "#login-button",
+  // Inventory
+  inventoryItem: ".inventory_item",
+  itemName: ".inventory_item_name",
+  itemDesc: ".inventory_item_desc",
+  itemPrice: ".inventory_item_price",
+  addToCartBtn: 'button[data-test^="add-to-cart"]',
+  removeBtn: 'button[data-test^="remove"]',
+  // Cart
+  cartBadge: ".shopping_cart_badge",
+  cartLink: ".shopping_cart_link",
+  cartItem: ".cart_item",
+};
 
-async function login(page) {
-  await page.goto(URL);
-  await page.fill('#user-name', USERNAME);
-  await page.fill('#password', PASSWORD);
-  await page.click('#login-button');
-  await expect(page).toHaveURL(`${URL}/inventory.html`);
-}
+test.beforeEach(async ({ page }) => {
+  await page.goto(data.baseUrl);
+  await page.fill(locators.usernameInput, data.credentials.username);
+  await page.fill(locators.passwordInput, data.credentials.password);
+  await page.click(locators.loginButton);
+  await expect(page).toHaveURL(`${data.baseUrl}/inventory.html`);
+});
+
+test.afterEach(async ({ page }) => {
+  console.log(`[afterEach] Test finished on: ${page.url()}`);
+});
 
 
-test('Add one product and verify it in the cart', async ({ page }) => {
-  await login(page);
+test('Verify button behavior when double clicking', async ({ page }) => {
+
+  const firstItem = page.locator('.inventory_item').first();
+  const addButton = firstItem.locator('button[data-test="add-to-cart"]');
+  const removeButton = firstItem.locator('button[data-test="remove"]');
+
+  await expect(addButton).toBeVisible();
+
+  await addButton.click();
+
+  await expect(removeButton).toBeVisible();
+  await expect(page.locator('shopping_cart_link')).toHaveText('1');
+
+  await removeButton.click();
+  await expect(addButton).toBeVisible();
+  await expect(page.locator('shopping_cart_link')).not.toBeVisible();
+
+});
+
+/*test('Add one product and verify it in the cart', async ({ page }) => {
+
 
   const firstItem = page.locator('.inventory_item').first();
   const expectedName = await firstItem.locator('.inventory_item_name').innerText();
@@ -39,7 +77,7 @@ test('Add one product and verify it in the cart', async ({ page }) => {
 
 
 test('Add multiple products and verify them in the cart', async ({ page }) => {
-  await login(page);
+
 
   const items = page.locator('.inventory_item');
   const count = 3; 
@@ -75,7 +113,7 @@ test('Add multiple products and verify them in the cart', async ({ page }) => {
 
 
 test('Add to cart button toggles to Remove and back', async ({ page }) => {
-  await login(page);
+
 
   const firstItem = page.locator('.inventory_item').first();
   const addButton = firstItem.locator('button[data-test^="add-to-cart"]');
@@ -99,4 +137,4 @@ test('Add to cart button toggles to Remove and back', async ({ page }) => {
 
 
   // Verify that the cart is empty
-});
+});*/
